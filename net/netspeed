@@ -1,11 +1,15 @@
 #!/bin/bash
 
 raw=0
+kb=0
 
-while getopts ":ri:" opt; do
+while getopts ":rki:" opt; do
   case $opt in
     r)
       raw=1
+      ;;
+    k)
+      kb=1
       ;;
     i)
       IF=$OPTARG
@@ -36,15 +40,22 @@ do
         sleep 1
         R2=`cat /sys/class/net/$IF/statistics/rx_bytes`
         T2=`cat /sys/class/net/$IF/statistics/tx_bytes`
+        timestamp=`date +%s.%N`
         TBPS=`expr $T2 - $T1`
         RBPS=`expr $R2 - $R1`
-        TKBPS=`expr $TBPS / 1024`
-        RKBPS=`expr $RBPS / 1024`
-        timestamp=`date +%s.%N`
+        if [ "$kb" -eq 1 ]; then
+          TSPEED=`expr $TBPS / 1024`
+          RSPEED=`expr $RBPS / 1024`
+          UNIT='kb/s'
+        else
+          TSPEED=$TBPS
+          RSPEED=$RBPS
+          UNIT='b/s'
+        fi
 		if [ "$raw" -eq 1 ]; then
           echo -e "$timestamp $TBPS $RBPS"
         else
-          echo -e "[$timestamp]\ttx $IF: $TBPS b/s   \trx $IF: $RBPS b/s"
+          echo -e "[$timestamp]\ttx $IF: $TSPEED $UNIT   \trx $IF: $RSPEED $UNIT"
         fi
 done
 

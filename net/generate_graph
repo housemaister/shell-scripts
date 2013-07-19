@@ -1,0 +1,24 @@
+#!/bin/bash
+# gnuplot script file for plotting bandwidth over time
+
+
+/usr/bin/gnuplot <<EOF
+reset
+set terminal png
+
+set xdata time
+set timefmt "%s.%N"
+set format x "%H:%M"
+set output "$2"
+
+set xlabel "time"
+set ylabel "kbytes/s"
+
+set title "eth0 network speed"
+set key below
+set grid
+
+plot "$1" using 1:2 smooth unique title "tx" \
+     ,"" using 1:3 smooth unique title "rx"
+EOF
+

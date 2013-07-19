@@ -3,8 +3,9 @@
 raw=0
 kb=0
 byte=0
+frequency=1
 
-while getopts ":rkbi:" opt; do
+while getopts ":rkbf:i:" opt; do
   case $opt in
     r)
       raw=1
@@ -17,6 +18,9 @@ while getopts ":rkbi:" opt; do
       ;;
     i)
       IF=$OPTARG
+      ;;
+    f)
+      frequency=$OPTARG
       ;;
     \?)
       echo "Invalid option: -$OPTARG" >&2
@@ -48,7 +52,7 @@ do
   R1=$R2
   T1=$T2
   OLDTIMESTAMP=$TIMESTAMP
-  sleep 1
+  sleep $frequency
   R2=`cat /sys/class/net/$IF/statistics/rx_bytes`
   T2=`cat /sys/class/net/$IF/statistics/tx_bytes`
   TIMESTAMP=`date +%s.%N`

@@ -2,14 +2,18 @@
 
 raw=0
 kb=0
+byte=0
 
-while getopts ":rki:" opt; do
+while getopts ":rkbi:" opt; do
   case $opt in
     r)
       raw=1
       ;;
     k)
       kb=1
+      ;;
+    b)
+      byte=1
       ;;
     i)
       IF=$OPTARG
@@ -26,36 +30,56 @@ while getopts ":rki:" opt; do
 done
 
 if [ -z "$IF" ]; then
-        echo $0: prints the tx/rx speed at given network interface in b/s
-        echo usage: $0 [-r] -i network-interface
-        echo e.g. $0 -i eth0
-        echo -r outputs in raw format: timestamp tx rx
+        echo "$0: prints the tx/rx speed/bytes at given network interface in b/s"
+        echo "    usage: $0 [-rkb] -i network-interface"
+        echo "    e.g. $0 -i eth0"
+        echo "    -k sets the unit to kbyte(/s)"
+        echo "    -b outputs the total (k)byte; without the output is (k)byte/s"
+        echo "    -r outputs in raw format: TIMESTAMP tx rx"
         exit 1
 fi
 
+R2=`cat /sys/class/net/$IF/statistics/rx_bytes`
+T2=`cat /sys/class/net/$IF/statistics/tx_bytes`
+TIMESTAMP=`date +%s.%N`
+
 while true
 do
-        R1=`cat /sys/class/net/$IF/statistics/rx_bytes`
-        T1=`cat /sys/class/net/$IF/statistics/tx_bytes`
+        R1=$R2
+        T1=$T2
+		OLDTIMESTAMP=$TIMESTAMP
         sleep 1
         R2=`cat /sys/class/net/$IF/statistics/rx_bytes`
         T2=`cat /sys/class/net/$IF/statistics/tx_bytes`
-        timestamp=`date +%s.%N`
-        TBPS=`expr $T2 - $T1`
-        RBPS=`expr $R2 - $R1`
-        if [ "$kb" -eq 1 ]; then
-          TSPEED=`expr $TBPS / 1024`
-          RSPEED=`expr $RBPS / 1024`
-          UNIT='kb/s'
-        else
-          TSPEED=$TBPS
-          RSPEED=$RBPS
-          UNIT='b/s'
+        TIMESTAMP=`date +%s.%N`
+        DELTAT=`expr $T2 - $T1`
+        DELTAR=`expr $R2 - $R1`
+		DELTATIME=`echo "scale=8; $TIMESTAMP - $OLDTIMESTAMP" | bc`
+		if [ "$byte" -eq 1 ]; then
+		    if [ "$kb" -eq 1 ]; then
+              TSPEED=`expr $DELTAT / 1024`
+              RSPEED=`expr $DELTAR / 1024`
+              UNIT='kbyte'
+            else
+              TSPEED=$DELTAT
+              RSPEED=$DELTAR
+              UNIT='byte'
+            fi
+		else
+		    if [ "$kb" -eq 1 ]; then
+		      TSPEED=`echo "scale=0; $DELTAT / 1024 / $DELTATIME" | bc`
+		      RSPEED=`echo "scale=0; $DELTAR / 1024 / $DELTATIME" | bc`
+		      UNIT='kb/s'
+		    else
+		      TSPEED=`echo "scale=0; $DELTAT / $DELTATIME" | bc`
+		      RSPEED=`echo "scale=0; $DELTAR / $DELTATIME" | bc`
+		      UNIT='b/s'
+		    fi
         fi
 		if [ "$raw" -eq 1 ]; then
-          echo -e "$timestamp $TBPS $RBPS"
+          echo -e "$TIMESTAMP $TSPEED $RSPEED"
         else
-          echo -e "[$timestamp]\ttx $IF: $TSPEED $UNIT   \trx $IF: $RSPEED $UNIT"
+          echo -e "[$TIMESTAMP]\ttx $IF: $TSPEED $UNIT   \trx $IF: $RSPEED $UNIT"
         fi
 done
 
